@@ -1,6 +1,7 @@
 package com.brightcove.rna.bigtable.core;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * An EntitySchema is the parsed schema that contains the properties of an HBase
@@ -8,7 +9,6 @@ import java.util.*;
  */
 public class EntitySchema {
 
-    private final Collection<String> tables;
     private final Map<String, FieldMapping> fieldMappings = new HashMap<>();
     private final String rawSchema;
     private final String name;
@@ -16,28 +16,17 @@ public class EntitySchema {
     /**
      * Constructs the EntitySchema
      *
-     * @param tables        The tables this EntitySchema can be persisted to
      * @param name          The name of the entity schema
      * @param rawSchema     The raw schema type that underlies the EntitySchema implementation
      * @param fieldMappings The list of FieldMappings that specify how each field maps to an
      *                      HBase row
      */
-    public EntitySchema(Collection<String> tables, String name, String rawSchema, Collection<FieldMapping> fieldMappings) {
-        this.tables = tables;
+    public EntitySchema(String name, String rawSchema, Collection<FieldMapping> fieldMappings) {
         this.name = name;
         this.rawSchema = rawSchema;
         for (FieldMapping fieldMapping : fieldMappings) {
             this.fieldMappings.put(fieldMapping.fieldName(), fieldMapping);
         }
-    }
-
-    /**
-     * Get the tables this EntitySchema can be persisted to.
-     *
-     * @return The list of tables.
-     */
-    public Collection<String> getTables() {
-        return tables;
     }
 
     /**
@@ -109,31 +98,9 @@ public class EntitySchema {
      * @return The set of column families.
      */
     public Set<String> getRequiredColumnFamilies() {
-        Set<String> set = new HashSet<String>();
-        Set<String> columnSet = getRequiredColumns();
-        for (String column : columnSet) {
-            set.add(column.split(":")[0]);
-        }
-        return set;
+        return getRequiredColumns().stream()
+                .map(column -> column.split(":")[0])
+                .collect(Collectors.toSet());
     }
 
-    /**
-     * Method meant to determine if two EntitySchemas are compatible with each
-     * other for schema migration purposes. Classes that inherit EntitySchema
-     * should override this implementation, since this implemetnation isn't able
-     * to make that determination.
-     * <p>
-     * TODO: Figure out a base set of properties that all entity schema
-     * implementations should share in their implementation of determining
-     * compatibility and execute that here.
-     *
-     * @param entitySchema The other EntitySchema to determine compatible with
-     * @return
-     */
-    public boolean compatible(EntitySchema entitySchema) {
-        // throw an exception if anyone calls this directly, as this should be
-        // overridden in derived classes.
-        throw new UnsupportedOperationException(
-            "EntityScheam class can't determine if two entity schemas are compatible.");
-    }
 }

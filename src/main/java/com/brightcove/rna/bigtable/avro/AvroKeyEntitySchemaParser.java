@@ -27,7 +27,6 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -111,8 +110,7 @@ public class AvroKeyEntitySchemaParser implements KeyEntitySchemaParser<AvroKeyS
         JsonNode schemaAsJson = rawSchemaAsJsonNode(rawSchema);
         Schema schema = avroSchemaParser.parse(rawSchema);
         List<FieldMapping> fieldMappings = getFieldMappings(schemaAsJson, schema);
-        List<String> tables = getTables(schemaAsJson);
-        return new AvroEntitySchema(tables, schema, rawSchema, fieldMappings);
+        return new AvroEntitySchema(schema, rawSchema, fieldMappings);
     }
 
     private List<FieldMapping> getFieldMappings(JsonNode schemaAsJson, Schema schema) {
@@ -195,16 +193,5 @@ public class AvroKeyEntitySchemaParser implements KeyEntitySchemaParser<AvroKeyS
                                     .mappingValue(mappingValue)
                                     .defaultValue(defaultValueMap.get(fieldName))
                                     .build();
-    }
-
-    private List<String> getTables(JsonNode avroRecordSchemaJson) {
-        if (avroRecordSchemaJson.get("tables") == null) {
-            return Lists.newArrayList();
-        }
-        List<String> result = Lists.newArrayListWithCapacity(avroRecordSchemaJson.get("tables").size());
-        for (Iterator<JsonNode> it = avroRecordSchemaJson.get("tables").getElements(); it.hasNext(); ) {
-            result.add(it.next().getTextValue());
-        }
-        return result;
     }
 }

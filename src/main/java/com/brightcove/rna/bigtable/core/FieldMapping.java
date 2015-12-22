@@ -10,10 +10,10 @@ import static com.google.common.base.Charsets.UTF_8;
 @Value.Immutable
 public abstract class FieldMapping {
 
-    public abstract String fieldName();
+    public abstract String      fieldName();
     public abstract MappingType mappingType();
-    public abstract String mappingValue();
-    public abstract Object defaultValue();
+    public abstract String      mappingValue();
+    public abstract Object      defaultValue();
 
     @Value.Derived
     public byte[] family() { return getFamilyFromMappingValue(mappingValue()); }
