@@ -1,20 +1,17 @@
 plugins {
     id 'org.inferred.processors' version '1.1'
+    id 'net.researchgate.release'           version '2.3.1'
 }
+
 apply plugin: 'java'
 apply plugin: 'idea'
-apply plugin: 'org.inferred.processors'
+apply plugin: 'maven-publish'
 
 group 'com.brightcove.rna'
 version '0.1.0-SNAPSHOT'
 
-
 sourceCompatibility = 1.8
 
-repositories {
-    mavenLocal()
-    mavenCentral()
-}
 
 dependencies {
     processor 'org.immutables:value:2.0.21'
@@ -26,3 +23,39 @@ dependencies {
 
     testCompile 'junit:junit:4.12'
 }
+
+/////////// release settings ///////////
+task sourceJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+publishing {
+    repositories {
+        maven {
+            url 'http://nexus.vidmark.local:8081/nexus/content/repositories/releases/'
+            credentials {
+                username 'deployment'
+                password 'deployment'
+            }
+        }
+    }
+
+    publications {
+        maven(MavenPublication) {
+            artifactId 'magrathea'
+            from components.java
+            artifact sourceJar
+        }
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url 'http://nexus.vidmark.local:8081/nexus/content/repositories/releases/'
+    }
+}
+
+afterReleaseBuild.dependsOn publish
