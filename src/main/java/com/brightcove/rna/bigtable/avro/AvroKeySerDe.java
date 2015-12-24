@@ -34,8 +34,7 @@ public class AvroKeySerDe<KS extends IndexedRecord> implements KeySerDe<KS> {
             if (i == (fieldSize - 1)) {
                 break;
             }
-            List<Schema.Field> partialFieldList =
-                schema.getFields().subList(0, i + 1).stream()
+            List<Schema.Field> partialFieldList = schema.getFields().subList(0, i + 1).stream()
                                   .map(AvroUtils::cloneField)
                                   .collect(Collectors.toList());
             this.partialSchemas[i] = Schema.createRecord(partialFieldList);

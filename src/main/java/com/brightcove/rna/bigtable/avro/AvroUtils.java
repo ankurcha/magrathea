@@ -1,12 +1,15 @@
 package com.brightcove.rna.bigtable.avro;
 
+import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.*;
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.commons.lang.SerializationException;
+import org.codehaus.jackson.JsonNode;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -133,4 +136,43 @@ public class AvroUtils {
         return defaultValueMap;
     }
 
+    static AvroEntitySchema mergeSpecificStringTypes(Class<? extends SpecificRecord> specificClass, AvroEntitySchema entitySchema) {
+        Schema schemaField;
+        try {
+            schemaField = (Schema) specificClass.getField("SCHEMA$").get(null);
+        } catch (IllegalAccessException | NoSuchFieldException e) {
+            throw new IllegalStateException(e);
+        }
+        return new AvroEntitySchema(schemaField, entitySchema.getRawSchema(), entitySchema.getFieldMappings());
+    }
+
+    static AvroKeySchema mergeSpecificStringTypes(
+        Class<? extends SpecificRecord> specificClass, AvroKeySchema keySchema) {
+        Schema schemaField;
+        try {
+            schemaField = (Schema) specificClass.getField("SCHEMA$").get(null);
+        } catch (IllegalAccessException | NoSuchFieldException e) {
+            throw new IllegalStateException(e);
+        }
+        // Ensure schema is limited to keySchema's fields. The class may have more
+        // fields
+        // in the case that the entity is being used as a key.
+        List<Schema.Field> fields = Lists.newArrayList();
+        Schema avroSchema = keySchema.getAvroSchema();
+        fields.addAll(avroSchema.getFields().stream()
+            .map(field -> copy(schemaField.getField(field.name())))
+            .collect(Collectors.toList()));
+        Schema schema = Schema.createRecord(avroSchema.getName(), avroSchema.getDoc(), avroSchema.getNamespace(), avroSchema.isError());
+        schema.setFields(fields);
+        return new AvroKeySchema(schema, keySchema.getRawSchema());
+    }
+
+    private static Schema.Field copy(Schema.Field f) {
+        Schema.Field copy = AvroUtils.cloneField(f);
+        // retain mapping properties
+        for (Map.Entry<String, JsonNode> prop : f.getJsonProps().entrySet()) {
+            copy.addProp(prop.getKey(), prop.getValue());
+        }
+        return copy;
+    }
 }

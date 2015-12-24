@@ -11,5 +11,4 @@ public class KeySchema {
     public String getRawSchema() {
         return rawSchema;
     }
-
 }

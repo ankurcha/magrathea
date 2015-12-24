@@ -1,11 +1,14 @@
 package com.brightcove.rna.bigtable.avro;
 
+import com.brightcove.rna.bigtable.core.FieldMapping;
 import com.brightcove.rna.bigtable.core.MappingType;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.IndexedRecord;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -22,6 +25,7 @@ public class AvroEntityComposer<E extends IndexedRecord> {
     private final AvroRecordBuilderFactory<E> recordBuilderFactory;
     private final AvroEntitySchema avroSchema;
     private final boolean specific;
+    private final int keyPartCount;
 
     /**
      * A mapping of entity field names to AvroRecordBuilderFactories for any
@@ -42,6 +46,13 @@ public class AvroEntityComposer<E extends IndexedRecord> {
         this.specific = specific;
         this.recordBuilderFactory = buildAvroRecordBuilderFactory(avroEntitySchema.getAvroSchema());
         this.kacRecordBuilderFactories = new HashMap<>();
+        int keyPartCount = 0;
+        for (FieldMapping fieldMapping : avroEntitySchema.getFieldMappings()) {
+            if (fieldMapping.mappingType() == MappingType.KEY) {
+                keyPartCount++;
+            }
+        }
+        this.keyPartCount = keyPartCount;
         initRecordBuilderFactories();
     }
 
@@ -223,5 +234,16 @@ public class AvroEntityComposer<E extends IndexedRecord> {
             default:
                 return null; // not a primitive type, so return null
         }
+    }
+
+    public List<Object> getPartitionKeyParts(E entity) {
+        Object[] parts = new Object[keyPartCount];
+        avroSchema.getFieldMappings().stream()
+            .filter(fieldMapping -> fieldMapping.mappingType() == MappingType.KEY)
+            .forEach(fieldMapping -> {
+                int pos = avroSchema.getAvroSchema().getField(fieldMapping.fieldName()).pos();
+                parts[Integer.parseInt(fieldMapping.mappingValue())] = entity.get(pos);
+            });
+        return Arrays.asList(parts);
     }
 }

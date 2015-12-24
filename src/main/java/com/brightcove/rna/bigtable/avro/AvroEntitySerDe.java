@@ -131,19 +131,23 @@ public class AvroEntitySerDe<E extends IndexedRecord> implements EntitySerDe<E> 
      */
     @Override
     public Put serialize(byte[] keyBytes, FieldMapping mapping, Object fieldValue) {
-        Put put = new Put(keyBytes);
+        Put newPut = new Put(keyBytes);
+        return serialize(newPut, mapping, fieldValue);
+    }
+
+    public Put serialize(Put oldPut, FieldMapping mapping, Object fieldValue) {
         String fieldName = mapping.fieldName();
         MappingType type = mapping.mappingType();
 
         checkArgument(VALID_MAPPING_TYPES.contains(type), "Invalid field mapping for field with name: %s", fieldName);
 
         if (type == MappingType.COLUMN || type == MappingType.COUNTER) {
-            serializeColumn(mapping, fieldValue, put);
+            serializeColumn(mapping, fieldValue, oldPut);
         } else if (type == MappingType.KEY_AS_COLUMN) {
-            serializeKeyAsColumn(mapping, fieldValue, put);
+            serializeKeyAsColumn(mapping, fieldValue, oldPut);
         }
 
-        return put;
+        return oldPut;
     }
 
     /**
@@ -168,6 +172,11 @@ public class AvroEntitySerDe<E extends IndexedRecord> implements EntitySerDe<E> 
             return deserializeKeyAsColumn(mapping, result);
         }
         return null;
+    }
+
+    @Override
+    public AvroEntityComposer<E> getEntityComposer() {
+        return entityComposer;
     }
 
     /**
