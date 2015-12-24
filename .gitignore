@@ -13,9 +13,9 @@ hs_err_pid*
 target
 
 # Created by .ignore support plugin (hsz.mobi)
-*.iml
 .idea/**
 
 .gradle/**
 build/**
-
+generated_src/
+generated_testSrc/
