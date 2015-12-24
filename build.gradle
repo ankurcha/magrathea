@@ -1,17 +1,13 @@
 plugins {
     id 'org.inferred.processors' version '1.1'
-    id 'net.researchgate.release'           version '2.3.1'
+    id 'net.researchgate.release' version '2.3.1'
 }
 
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'maven-publish'
 
-group 'com.brightcove.rna'
-version '0.1.0-SNAPSHOT'
-
 sourceCompatibility = 1.8
-
 
 dependencies {
     processor 'org.immutables:value:2.0.21'
@@ -19,7 +15,6 @@ dependencies {
     compile 'org.apache.avro:avro:1.7.7'
     compile 'com.google.cloud.bigtable:bigtable-hbase-1.0:0.2.2'
     compile 'com.aol.cyclops:cyclops-all:6.2.3'
-
 
     testCompile 'junit:junit:4.12'
 }
