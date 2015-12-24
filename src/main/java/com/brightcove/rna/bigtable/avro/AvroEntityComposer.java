@@ -1,20 +1,16 @@
 package com.brightcove.rna.bigtable.avro;
 
-import com.brightcove.rna.bigtable.core.DatasetException;
-import com.brightcove.rna.bigtable.core.FieldMapping;
 import com.brightcove.rna.bigtable.core.MappingType;
-import com.brightcove.rna.bigtable.core.SchemaValidationException;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.IndexedRecord;
 
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * An EntityComposer implementation for Avro records.
@@ -23,9 +19,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class AvroEntityComposer<E extends IndexedRecord> {
 
+    private final AvroRecordBuilderFactory<E> recordBuilderFactory;
     private final AvroEntitySchema avroSchema;
     private final boolean specific;
-    private final AvroRecordBuilderFactory<E> recordBuilderFactory;
 
     /**
      * A mapping of entity field names to AvroRecordBuilderFactories for any
@@ -34,11 +30,6 @@ public class AvroEntityComposer<E extends IndexedRecord> {
      * parts.
      */
     private final Map<String, AvroRecordBuilderFactory<E>> kacRecordBuilderFactories;
-
-    /**
-     * The number of key parts in the entity schema.
-     */
-    private final int keyPartCount;
 
     /**
      * AvroEntityComposer constructor.
@@ -51,13 +42,6 @@ public class AvroEntityComposer<E extends IndexedRecord> {
         this.specific = specific;
         this.recordBuilderFactory = buildAvroRecordBuilderFactory(avroEntitySchema.getAvroSchema());
         this.kacRecordBuilderFactories = new HashMap<>();
-        int keyPartCount = 0;
-        for (FieldMapping fieldMapping : avroEntitySchema.getFieldMappings()) {
-            if (fieldMapping.mappingType() == MappingType.KEY) {
-                keyPartCount++;
-            }
-        }
-        this.keyPartCount = keyPartCount;
         initRecordBuilderFactories();
     }
 
@@ -125,27 +109,34 @@ public class AvroEntityComposer<E extends IndexedRecord> {
         Schema schema = avroSchema.getAvroSchema();
         Field field = schema.getField(fieldName);
         checkNotNull(field, "No field named %s in schema %s", fieldName, schema);
-        if (field.schema().getType() == Schema.Type.MAP) {
-            return new HashMap<>((Map<CharSequence, Object>) fieldValue);
-        } else if (field.schema().getType() == Schema.Type.RECORD) {
-            Map<CharSequence, Object> keyAsColumnValues = new HashMap<>();
-            IndexedRecord avroRecord = (IndexedRecord) fieldValue;
-            for (Field avroRecordField : avroRecord.getSchema().getFields()) {
-                keyAsColumnValues.put(avroRecordField.name(), avroRecord.get(avroRecordField.pos()));
-            }
-            return keyAsColumnValues;
-        } else {
-            throw new SchemaValidationException(
-                String.format("Only MAP or RECORD type valid for keyAsColumn fields. Found %s", field.schema().getType()));
+        Schema.Type type = field.schema().getType();
+
+        checkState(type == Schema.Type.MAP || type == Schema.Type.RECORD,
+            "Only MAP or RECORD type valid for keyAsColumn fields. Found %s", type);
+
+        switch (type) {
+            case MAP:
+                return new HashMap<>((Map<CharSequence, Object>) fieldValue);
+            case RECORD:
+                Map<CharSequence, Object> keyAsColumnValues = new HashMap<>();
+                IndexedRecord avroRecord = (IndexedRecord) fieldValue;
+                for (Field avroRecordField : avroRecord.getSchema().getFields()) {
+                    keyAsColumnValues.put(avroRecordField.name(), avroRecord.get(avroRecordField.pos()));
+                }
+                return keyAsColumnValues;
         }
+        return null;
     }
 
     public Object buildKeyAsColumnField(String fieldName, Map<CharSequence, Object> keyAsColumnValues) {
         Schema schema = avroSchema.getAvroSchema();
         Field field = schema.getField(fieldName);
         checkNotNull(field, "No field named %s in schema %s", fieldName, schema);
-
         Schema.Type fieldType = field.schema().getType();
+
+        checkState(fieldType == Schema.Type.MAP || fieldType == Schema.Type.RECORD,
+            "Only MAP or RECORD type valid for keyAsColumn fields. Found %s", fieldType);
+
         if (fieldType == Schema.Type.MAP) {
             Map<CharSequence, Object> retMap = new HashMap<>();
             for (Entry<CharSequence, Object> entry : keyAsColumnValues.entrySet()) {
@@ -158,10 +149,9 @@ public class AvroEntityComposer<E extends IndexedRecord> {
                 builder.put(keyAsColumnEntry.getKey().toString(), keyAsColumnEntry.getValue());
             }
             return builder.build();
-        } else {
-            throw new SchemaValidationException(
-                String.format("Only MAP or RECORD type valid for keyAsColumn fields. Found %s", fieldType));
         }
+
+        return null;
     }
 
     /**
@@ -202,7 +192,7 @@ public class AvroEntityComposer<E extends IndexedRecord> {
         try {
             specificClass = (Class<E>) Class.forName(className);
         } catch (ClassNotFoundException e) {
-            throw new DatasetException(String.format("Could not get Class instance for %s", className));
+            throw new IllegalStateException(String.format("Could not get Class instance for %s", className));
         }
         return new SpecificAvroRecordBuilderFactory(specificClass);
     }
@@ -233,17 +223,5 @@ public class AvroEntityComposer<E extends IndexedRecord> {
             default:
                 return null; // not a primitive type, so return null
         }
-    }
-
-    public List<Object> getPartitionKeyParts(E entity) {
-        Object[] parts = new Object[keyPartCount];
-        avroSchema.getFieldMappings()
-            .stream()
-            .filter(fieldMapping -> fieldMapping.mappingType() == MappingType.KEY)
-            .forEach(fieldMapping -> {
-                int pos = avroSchema.getAvroSchema().getField(fieldMapping.fieldName()).pos();
-                parts[Integer.parseInt(fieldMapping.mappingValue())] = entity.get(pos);
-            });
-        return Arrays.asList(parts);
     }
 }

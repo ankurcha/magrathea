@@ -1,7 +1,12 @@
 package com.brightcove.rna.bigtable.core;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static com.brightcove.rna.bigtable.core.MappingType.*;
 
 /**
  * An EntitySchema is the parsed schema that contains the properties of an HBase
@@ -9,7 +14,7 @@ import java.util.stream.Collectors;
  */
 public class EntitySchema {
 
-    private final Map<String, FieldMapping> fieldMappings = new HashMap<>();
+    private final Map<String, FieldMapping> fieldMappings;
     private final String rawSchema;
     private final String name;
 
@@ -18,15 +23,12 @@ public class EntitySchema {
      *
      * @param name          The name of the entity schema
      * @param rawSchema     The raw schema type that underlies the EntitySchema implementation
-     * @param fieldMappings The list of FieldMappings that specify how each field maps to an
-     *                      HBase row
+     * @param fieldMappings The list of FieldMappings that specify how each field maps to an HBase row
      */
     public EntitySchema(String name, String rawSchema, Collection<FieldMapping> fieldMappings) {
         this.name = name;
         this.rawSchema = rawSchema;
-        for (FieldMapping fieldMapping : fieldMappings) {
-            this.fieldMappings.put(fieldMapping.fieldName(), fieldMapping);
-        }
+        this.fieldMappings = fieldMappings.stream().collect(Collectors.toMap(FieldMapping::fieldName, Function.identity()));
     }
 
     /**
@@ -73,23 +75,18 @@ public class EntitySchema {
      * @return The set of columns
      */
     public Set<String> getRequiredColumns() {
-        Set<String> set = new HashSet<>();
-        for (FieldMapping fieldMapping : fieldMappings.values()) {
-            switch (fieldMapping.mappingType()) {
-                case KEY:
-                    break;
-                case COLUMN:
-                case COUNTER:
-                    set.add(fieldMapping.mappingValue());
-                    break;
-                case KEY_AS_COLUMN:
-                    String family = fieldMapping.mappingValue().split(":", 1)[0];
-                    family = family + ":";
-                    set.add(family);
-                    break;
-            }
-        }
-        return set;
+        // convert to a set based on mapping type ( 'key' type is null )
+        return fieldMappings.values().stream()
+            .map(fm -> {
+                if(fm.mappingType() == COLUMN || fm.mappingType() == COUNTER) {
+                    return fm.mappingValue();
+                } else if(fm.mappingType() == KEY_AS_COLUMN) {
+                    return fm.mappingValue().split(":", 1)[0] + ":";
+                }
+                return null;
+            })
+            .filter(val -> val!=null) // remove all nulls
+            .collect(Collectors.toSet()); // return as a set
     }
 
     /**

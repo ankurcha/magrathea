@@ -1,6 +1,5 @@
 package com.brightcove.rna.bigtable.avro;
 
-import com.brightcove.rna.bigtable.core.DatasetException;
 import org.apache.avro.specific.SpecificRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +36,7 @@ public class SpecificAvroRecordBuilderFactory<T extends SpecificRecord> implemen
             // so throw an DatasetException up to the user.
             String msg = "Could not get a default constructor for class: " + recordClass.toString();
             LOG.error(msg, e);
-            throw new DatasetException(msg, e);
+            throw new IllegalArgumentException(msg, e);
         }
     }
 
@@ -83,7 +82,7 @@ public class SpecificAvroRecordBuilderFactory<T extends SpecificRecord> implemen
     @Override
     public AvroRecordBuilder<T> getBuilder() {
         try {
-            return new SpecificAvroRecordBuilder<T>(recordClassConstructor);
+            return new SpecificAvroRecordBuilder<>(recordClassConstructor);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
