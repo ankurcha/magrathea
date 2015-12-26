@@ -32,11 +32,10 @@ public interface EntityMapper<E extends IndexedRecord> {
     /**
      * Map an entity of type T to an HBase Put instance.
      *
-     * @param key Row key object
      * @param entity The entity which this function will map to a Put instance.
      * @return An HBase Put.
      */
-    Put mapFromEntity(IndexedRecord key, E entity);
+    Put mapFromEntity(E entity);
 
     /**
      * Gets the set of required HBase columns that we would expect to be in the

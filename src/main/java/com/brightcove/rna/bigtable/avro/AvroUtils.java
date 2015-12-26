@@ -116,20 +116,29 @@ public class AvroUtils {
      * @return The map.
      */
     public static Map<String, Object> getDefaultValueMap(Schema avroRecordSchema) {
-        List<Schema.Field> defaultFields = avroRecordSchema.getFields().stream()
-            .filter(f -> f.defaultValue() != null)
-            .map(f -> new Schema.Field(f.name(), f.schema(), f.doc(), f.defaultValue(), f.order()))
-            .collect(Collectors.toList());
+        List<Schema.Field> defaultFields = new ArrayList<Schema.Field>();
+        for (Schema.Field f : avroRecordSchema.getFields()) {
+            if (f.defaultValue() != null) {
+                // Need to create a new Field here or we will get
+                // org.apache.avro.AvroRuntimeException: Field already used:
+                // schemaVersion
+                defaultFields.add(new Schema.Field(f.name(), f.schema(), f.doc(), f
+                    .defaultValue(), f.order()));
+            }
+        }
 
         Schema defaultSchema = Schema.createRecord(defaultFields);
-        Schema emptyRecordSchema = Schema.createRecord(new ArrayList<>());
-        DatumWriter<GenericRecord> writer = new GenericDatumWriter<>(emptyRecordSchema);
-        DatumReader<GenericRecord> reader = new GenericDatumReader<>(emptyRecordSchema, defaultSchema);
+        Schema emptyRecordSchema = Schema.createRecord(new ArrayList<Schema.Field>());
+        DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(
+            emptyRecordSchema);
+        DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(
+            emptyRecordSchema, defaultSchema);
 
         GenericRecord emptyRecord = new GenericData.Record(emptyRecordSchema);
-        GenericRecord defaultRecord = AvroUtils.readAvroEntity(AvroUtils.writeAvroEntity(emptyRecord, writer), reader);
+        GenericRecord defaultRecord = AvroUtils.readAvroEntity(
+            AvroUtils.writeAvroEntity(emptyRecord, writer), reader);
 
-        Map<String, Object> defaultValueMap = new HashMap<>();
+        Map<String, Object> defaultValueMap = new HashMap<String, Object>();
         for (Schema.Field f : defaultFields) {
             defaultValueMap.put(f.name(), defaultRecord.get(f.name()));
         }

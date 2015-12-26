@@ -77,12 +77,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class AvroKeyEntitySchemaParser implements KeyEntitySchemaParser<AvroKeySchema, AvroEntitySchema> {
     private static final ObjectMapper mapper = new ObjectMapper();
-    private static final Schema.Parser avroSchemaParser = new Schema.Parser();
 
     @Override
     public AvroKeySchema parseKeySchema(String rawSchema) {
         JsonNode schemaAsJson = rawSchemaAsJsonNode(rawSchema);
-        Schema schema = avroSchemaParser.parse(rawSchema);
+        Schema schema = new Schema.Parser().parse(rawSchema);
         List<FieldMapping> fieldMappings = getFieldMappings(schemaAsJson, schema);
         List<FieldMapping> keyFieldMappings = fieldMappings.stream()
                                                            .filter(fieldMapping -> fieldMapping.mappingType() == KEY)
@@ -93,7 +92,7 @@ public class AvroKeyEntitySchemaParser implements KeyEntitySchemaParser<AvroKeyS
     @Override
     public AvroEntitySchema parseEntitySchema(String rawSchema) {
         JsonNode schemaAsJson = rawSchemaAsJsonNode(rawSchema);
-        Schema schema = avroSchemaParser.parse(rawSchema);
+        Schema schema = new Schema.Parser().parse(rawSchema);
         List<FieldMapping> fieldMappings = getFieldMappings(schemaAsJson, schema);
         return new AvroEntitySchema(schema, rawSchema, fieldMappings);
     }

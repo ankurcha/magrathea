@@ -7,6 +7,10 @@ import org.apache.avro.Schema.Field;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+
+import static java.util.stream.Collectors.toMap;
 
 /**
  * A KeySchema implementation powered by Avro.
@@ -28,13 +32,18 @@ public class AvroKeySchema extends KeySchema {
     public AvroKeySchema(Schema schema, String rawSchema, List<FieldMapping> keyFieldMappings) {
         super(rawSchema);
         List<Field> fieldsPartOfKey = new ArrayList<>();
-        for (Field field : schema.getFields()) {
-            for (FieldMapping fieldMapping : keyFieldMappings) {
-                if (field.name().equals(fieldMapping.fieldName())) {
-                    fieldsPartOfKey.add(AvroUtils.cloneField(field));
-                }
-            }
-        }
+        Map<String, Field> fileToFieldInstance = schema.getFields().stream()
+                                                                   .collect(toMap(Field::name, Function.identity()));
+        // sort and then create a schema for the row key
+        keyFieldMappings.stream()
+            .sorted((o1, o2) -> {
+                int i1 = Integer.parseInt(o1.mappingValue());
+                int i2 = Integer.parseInt(o2.mappingValue());
+                return Integer.compare(i1, i2);
+            })
+            .map(fieldMapping -> fileToFieldInstance.get(fieldMapping.fieldName()))
+            .forEach(field -> fieldsPartOfKey.add(AvroUtils.cloneField(field)));
+
         this.schema = Schema.createRecord(fieldsPartOfKey);
     }
 

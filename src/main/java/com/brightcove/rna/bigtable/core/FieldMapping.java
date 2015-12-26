@@ -2,6 +2,8 @@ package com.brightcove.rna.bigtable.core;
 
 import org.immutables.value.Value;
 
+import javax.annotation.Nullable;
+
 import static com.google.common.base.Charsets.UTF_8;
 
 /**
@@ -13,12 +15,12 @@ public abstract class FieldMapping {
     public abstract String fieldName();
     public abstract MappingType mappingType();
     public abstract String mappingValue();
-    public abstract Object defaultValue();
+    @Nullable public abstract Object defaultValue();
 
-    @Value.Derived
+    @Value.Lazy
     public byte[] family() { return getFamilyFromMappingValue(mappingValue()); }
 
-    @Value.Derived
+    @Value.Lazy
     public byte[] qualifier() { return getQualifierFromMappingValue(mappingValue()); }
 
     private byte[] getFamilyFromMappingValue(String mappingValue) {

@@ -14,12 +14,12 @@ import org.apache.hadoop.hbase.client.Result;
 import java.util.Set;
 
 public class AvroEntityMapper<E extends IndexedRecord> implements EntityMapper<E> {
-    private final KeySchema keySchema;
-    private final EntitySchema entitySchema;
-    private final KeySerDe keySerDe;
-    private final EntitySerDe<E> entitySerDe;
+    private final AvroKeySchema keySchema;
+    private final AvroEntitySchema entitySchema;
+    private final AvroKeySerDe keySerDe;
+    private final AvroEntitySerDe<E> entitySerDe;
 
-    public AvroEntityMapper(KeySchema keySchema, EntitySchema entitySchema, KeySerDe keySerDe, EntitySerDe<E> entitySerDe) {
+    public AvroEntityMapper(AvroKeySchema keySchema, AvroEntitySchema entitySchema, AvroKeySerDe keySerDe, AvroEntitySerDe<E> entitySerDe) {
         this.keySchema = keySchema;
         this.entitySchema = entitySchema;
         this.keySerDe = keySerDe;
@@ -27,27 +27,27 @@ public class AvroEntityMapper<E extends IndexedRecord> implements EntityMapper<E
     }
 
     public static class Builder<X extends IndexedRecord> {
-        private KeySchema keySchema;
-        private EntitySchema entitySchema;
-        private KeySerDe keySerDe;
-        private EntitySerDe<X> entitySerDe;
+        private AvroKeySchema keySchema;
+        private AvroEntitySchema entitySchema;
+        private AvroKeySerDe keySerDe;
+        private AvroEntitySerDe<X> entitySerDe;
 
-        public Builder withKeySchema(KeySchema keySchema) {
+        public Builder withKeySchema(AvroKeySchema keySchema) {
             this.keySchema = keySchema;
             return this;
         }
 
-        public Builder withEntitySchema(EntitySchema entitySchema) {
+        public Builder withEntitySchema(AvroEntitySchema entitySchema) {
             this.entitySchema = entitySchema;
             return this;
         }
 
-        public Builder withKeySerDe(KeySerDe keySerDe) {
+        public Builder withKeySerDe(AvroKeySerDe keySerDe) {
             this.keySerDe = keySerDe;
             return this;
         }
 
-        public Builder withEntitySerDe(EntitySerDe<X> entitySerDe) {
+        public Builder withEntitySerDe(AvroEntitySerDe<X> entitySerDe) {
             this.entitySerDe = entitySerDe;
             return this;
         }
@@ -104,8 +104,8 @@ public class AvroEntityMapper<E extends IndexedRecord> implements EntityMapper<E
     }
 
     @Override
-    public Put mapFromEntity(IndexedRecord key, E entity) {
-        byte[] keyBytes = keySerDe.serialize(key); // TODO: rethink this
+    public Put mapFromEntity(E entity) {
+        byte[] keyBytes = keySerDe.serialize(entity);
         Put put = new Put(keyBytes);
         for (FieldMapping fieldMapping : entitySchema.getFieldMappings()) {
             if (fieldMapping.mappingType() == MappingType.KEY) {

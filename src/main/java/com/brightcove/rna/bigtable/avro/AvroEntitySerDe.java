@@ -81,10 +81,9 @@ public class AvroEntitySerDe<E extends IndexedRecord> implements EntitySerDe<E> 
      *
      * @param entityComposer    An entity composer that can construct Avro entities
      * @param avroSchema        The avro schema for entities this SerDe serializes and deserializes
-     * @param writtenAvroSchema The avro schema a record we are reading was written with
      * @param specific          True if the entity is a Specific avro record. False indicates it's a generic
      */
-    public AvroEntitySerDe(AvroEntityComposer<E> entityComposer, AvroEntitySchema avroSchema, AvroEntitySchema writtenAvroSchema, boolean specific) {
+    public AvroEntitySerDe(AvroEntityComposer<E> entityComposer, AvroEntitySchema avroSchema, boolean specific) {
         this.entityComposer = entityComposer;
         this.specific = specific;
         this.avroSchema = avroSchema;
@@ -93,16 +92,10 @@ public class AvroEntitySerDe<E extends IndexedRecord> implements EntitySerDe<E> 
         for (FieldMapping fieldMapping : avroSchema.getFieldMappings()) {
             String fieldName = fieldMapping.fieldName();
             Schema fieldSchema = avroSchema.getAvroSchema().getField(fieldName).schema();
-            Schema.Field writtenField = writtenAvroSchema.getAvroSchema().getField(fieldName);
-            // No field for the written version, so don't worry about datum readers and writers.
-            if (writtenField == null) {
-                continue;
-            }
-            Schema writtenFieldSchema = writtenField.schema();
             MappingType mappingType = fieldMapping.mappingType();
 
             if (mappingType == MappingType.COLUMN || mappingType == MappingType.COUNTER) {
-                initColumnDatumMaps(fieldName, fieldSchema, writtenFieldSchema);
+                initColumnDatumMaps(fieldName, fieldSchema);
             }
 
             if (mappingType == MappingType.KEY_AS_COLUMN) {
@@ -111,10 +104,10 @@ public class AvroEntitySerDe<E extends IndexedRecord> implements EntitySerDe<E> 
                 checkArgument(type == RECORD || type == MAP, "Unsupported type for keyAsColumn: %s", value);
                 if (type == RECORD) {
                     // Each field of the kac record has a different type, so we need to track each one in a different map.
-                    initKACRecordDatumMaps(fieldName, fieldSchema, writtenFieldSchema);
+                    initKACRecordDatumMaps(fieldName, fieldSchema);
                 } else if (type == MAP) {
                     // Only one value type for a map, so just put the type in the column datum maps.
-                    initColumnDatumMaps(fieldName, fieldSchema.getValueType(), writtenFieldSchema.getValueType());
+                    initColumnDatumMaps(fieldName, fieldSchema.getValueType());
                 }
 
             }
@@ -209,7 +202,7 @@ public class AvroEntitySerDe<E extends IndexedRecord> implements EntitySerDe<E> 
         Map<CharSequence, Object> keyAsColumnValues = entityComposer.extractKeyAsColumnValues(fieldName, fieldValue);
         for (Map.Entry<CharSequence, Object> entry : keyAsColumnValues.entrySet()) {
             CharSequence qualifier = entry.getKey();
-            byte[] qualifierBytes = serializeKeyAsColumnKeyToBytes(fieldName, qualifier);
+            byte[] qualifierBytes = serializeKeyAsColumnKeyToBytes(qualifier);
             // serialize the value, and add it to the put.
             byte[] bytes = serializeKeyAsColumnValueToBytes(fieldName, qualifier, entry.getValue());
             put.addColumn(mapping.family(), qualifierBytes, bytes);
@@ -255,29 +248,25 @@ public class AvroEntitySerDe<E extends IndexedRecord> implements EntitySerDe<E> 
     }
 
 
-    private void initColumnDatumMaps(String fieldName, Schema fieldSchema, Schema writtenFieldSchema) {
-        fieldDatumReaders.put(fieldName, buildDatumReader(fieldSchema, writtenFieldSchema));
+    private void initColumnDatumMaps(String fieldName, Schema fieldSchema) {
+        fieldDatumReaders.put(fieldName, buildDatumReader(fieldSchema));
         fieldDatumWriters.put(fieldName, buildDatumWriter(fieldSchema));
     }
 
 
-    private void initKACRecordDatumMaps(String fieldName, Schema fieldSchema, Schema writtenFieldSchema) {
+    private void initKACRecordDatumMaps(String fieldName, Schema fieldSchema) {
         Map<String, DatumReader<Object>> recordFieldReaderMap = new HashMap<>();
         Map<String, DatumWriter<Object>> recordFieldWriterMap = new HashMap<>();
         kacRecordDatumReaders.put(fieldName, recordFieldReaderMap);
         kacRecordDatumWriters.put(fieldName, recordFieldWriterMap);
         for (Schema.Field recordField : fieldSchema.getFields()) {
-            Schema.Field writtenRecordField = writtenFieldSchema.getField(recordField.name());
-            if (writtenRecordField == null) {
-                continue;
-            }
-            recordFieldReaderMap.put(recordField.name(), buildDatumReader(recordField.schema(), writtenRecordField.schema()));
+            recordFieldReaderMap.put(recordField.name(), buildDatumReader(recordField.schema()));
             recordFieldWriterMap.put(recordField.name(), buildDatumWriter(recordField.schema()));
         }
     }
 
-    private DatumReader<Object> buildDatumReader(Schema schema, Schema writtenSchema) {
-        return this.specific ? new SpecificDatumReader<>(writtenSchema, schema) : new GenericDatumReader<>(writtenSchema, schema);
+    private DatumReader<Object> buildDatumReader(Schema schema) {
+        return this.specific ? new SpecificDatumReader<>(schema) : new GenericDatumReader<>(schema);
     }
 
     private DatumWriter<Object> buildDatumWriter(Schema schema) {
@@ -318,7 +307,7 @@ public class AvroEntitySerDe<E extends IndexedRecord> implements EntitySerDe<E> 
         }
     }
 
-    public byte[] serializeKeyAsColumnKeyToBytes(String fieldName, CharSequence columnKey) {
+    public byte[] serializeKeyAsColumnKeyToBytes(CharSequence columnKey) {
         if (columnKey.getClass().isAssignableFrom(String.class)) {
             return ((String) columnKey).getBytes();
         } else if (columnKey.getClass().isAssignableFrom(Utf8.class)) {
