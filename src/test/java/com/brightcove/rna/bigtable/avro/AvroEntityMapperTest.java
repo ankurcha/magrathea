@@ -20,6 +20,7 @@ import java.util.*;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+@SuppressWarnings("deprecation")
 public class AvroEntityMapperTest {
     private static final AvroKeyEntitySchemaParser schemaParser = new AvroKeyEntitySchemaParser();
     private final String schemaString = "{ \n" +
@@ -114,15 +115,11 @@ public class AvroEntityMapperTest {
         AvroEntityComposer<GenericRecord> entityComposer = new AvroEntityComposer<>(entitySchema, false);
         AvroEntitySerDe<GenericRecord> entitySerDe = new AvroEntitySerDe<>(entityComposer, entitySchema, false);
         EntityMapper<GenericRecord> entityMapper = new AvroEntityMapper<>(keySchema, entitySchema, keySerDe, entitySerDe);
-        @SuppressWarnings("deprecation")
-        GenericRecord record = new GenericData.Record(Schema.parse(schemaString));
-
-        @SuppressWarnings("deprecation")
-        Schema subRecordSchema = Schema.parse(schemaString).getField("field4")
-            .schema();
+        GenericRecord record = new GenericData.Record(new Schema.Parser().parse(schemaString));
+        Schema subRecordSchema = new Schema.Parser().parse(schemaString).getField("field4").schema();
         GenericRecord subRecord = new GenericData.Record(subRecordSchema);
 
-        Map<String, Utf8> map = new HashMap<String, Utf8>();
+        Map<String, Utf8> map = new HashMap<>();
         map.put("1", new Utf8("string1"));
         map.put("2", new Utf8("string2"));
         map.put("3", new Utf8("string3"));
