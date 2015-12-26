@@ -3,7 +3,6 @@ package com.brightcove.rna.bigtable;
 import com.brightcove.rna.bigtable.core.EntitySchema;
 import com.brightcove.rna.bigtable.core.KeySchema;
 import org.apache.avro.generic.IndexedRecord;
-import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 
@@ -18,7 +17,7 @@ import java.util.Set;
  *
  * @param <E> The entity type
  */
-public interface EntityMapper<K extends IndexedRecord, E extends IndexedRecord> {
+public interface EntityMapper<E extends IndexedRecord> {
 
     /**
      * Map an HBase Result instance to an Entity of type T. Retrieve the StorageKey from
@@ -37,28 +36,7 @@ public interface EntityMapper<K extends IndexedRecord, E extends IndexedRecord> 
      * @param entity The entity which this function will map to a Put instance.
      * @return An HBase Put.
      */
-    Put mapFromEntity(K key, E entity);
-
-    /**
-     * Maps a StorageKey, fieldName and an increment value to an HBase Increment instance
-     * that will increment the value in the cell pointed to by fieldName.
-     *
-     * @param key       a key to use to construct the Increment instance.
-     * @param fieldName The name of the field we are incrementing
-     * @param amount    The amount to increment the field by
-     * @return An HBase Increment
-     */
-    Increment mapToIncrement(K key, String fieldName, long amount);
-
-    /**
-     * Maps the result of an increment to the new value of the field that was
-     * incremented.
-     *
-     * @param result    The HBase client Result object that contains the increment result
-     * @param fieldName The name of the field we are getting the increment result for
-     * @return The new field value.
-     */
-    long mapFromIncrementResult(Result result, String fieldName);
+    Put mapFromEntity(IndexedRecord key, E entity);
 
     /**
      * Gets the set of required HBase columns that we would expect to be in the
@@ -95,7 +73,7 @@ public interface EntityMapper<K extends IndexedRecord, E extends IndexedRecord> 
      *
      * @return The key serde for the entity mapper
      */
-    KeySerDe<K> getKeySerDe();
+    KeySerDe getKeySerDe();
 
     /**
      * Gets the entity serde instance for this entity mapper

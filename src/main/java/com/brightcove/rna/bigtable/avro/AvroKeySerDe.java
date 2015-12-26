@@ -4,15 +4,11 @@ import com.brightcove.rna.bigtable.KeySerDe;
 import com.brightcove.rna.bigtable.avro.io.MemcmpDecoder;
 import com.brightcove.rna.bigtable.avro.io.MemcmpEncoder;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumWriter;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.IndexedRecord;
+import org.apache.avro.generic.*;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.Encoder;
-import org.apache.avro.specific.SpecificDatumReader;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -22,7 +18,7 @@ import java.util.stream.Collectors;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.apache.avro.Schema.Type.UNION;
 
-public class AvroKeySerDe<KS extends IndexedRecord> implements KeySerDe<KS> {
+public class AvroKeySerDe implements KeySerDe {
     private final Schema schema;
     private final Schema[] partialSchemas;
 
@@ -43,7 +39,7 @@ public class AvroKeySerDe<KS extends IndexedRecord> implements KeySerDe<KS> {
 
 
     @Override
-    public byte[] serialize(KS key) {
+    public byte[] serialize(IndexedRecord key) {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         Encoder encoder = new MemcmpEncoder(outputStream);
         Schema schemaToUse;
@@ -83,11 +79,11 @@ public class AvroKeySerDe<KS extends IndexedRecord> implements KeySerDe<KS> {
     }
 
     @Override
-    public KS deserialize(byte[] keyBytes) {
+    public IndexedRecord deserialize(byte[] keyBytes) {
         ByteArrayInputStream inputStream = new ByteArrayInputStream(keyBytes);
         Decoder decoder = new MemcmpDecoder(inputStream);
 
-        DatumReader<KS> datumReader = new SpecificDatumReader<>(schema);
+        DatumReader<GenericRecord> datumReader = new GenericDatumReader<>(schema);
         return AvroUtils.readAvroEntity(decoder, datumReader);
     }
 }

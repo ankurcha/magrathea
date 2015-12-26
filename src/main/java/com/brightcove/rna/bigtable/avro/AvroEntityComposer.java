@@ -6,26 +6,19 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.IndexedRecord;
 
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-/**
- * An EntityComposer implementation for Avro records.
- *
- * @param <E> The type of the entity
- */
 public class AvroEntityComposer<E extends IndexedRecord> {
 
     private final AvroRecordBuilderFactory<E> recordBuilderFactory;
     private final AvroEntitySchema avroSchema;
     private final boolean specific;
-    private final int keyPartCount;
+//    private final int keyPartCount;
 
     /**
      * A mapping of entity field names to AvroRecordBuilderFactories for any
@@ -52,7 +45,7 @@ public class AvroEntityComposer<E extends IndexedRecord> {
                 keyPartCount++;
             }
         }
-        this.keyPartCount = keyPartCount;
+//        this.keyPartCount = keyPartCount;
         initRecordBuilderFactories();
     }
 
@@ -236,14 +229,4 @@ public class AvroEntityComposer<E extends IndexedRecord> {
         }
     }
 
-    public List<Object> getPartitionKeyParts(E entity) {
-        Object[] parts = new Object[keyPartCount];
-        avroSchema.getFieldMappings().stream()
-            .filter(fieldMapping -> fieldMapping.mappingType() == MappingType.KEY)
-            .forEach(fieldMapping -> {
-                int pos = avroSchema.getAvroSchema().getField(fieldMapping.fieldName()).pos();
-                parts[Integer.parseInt(fieldMapping.mappingValue())] = entity.get(pos);
-            });
-        return Arrays.asList(parts);
-    }
 }

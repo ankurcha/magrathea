@@ -8,28 +8,55 @@ import com.brightcove.rna.bigtable.core.FieldMapping;
 import com.brightcove.rna.bigtable.core.KeySchema;
 import com.brightcove.rna.bigtable.core.MappingType;
 import org.apache.avro.generic.IndexedRecord;
-import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 
 import java.util.Set;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
-public class AvroEntityMapper<K extends IndexedRecord, E extends IndexedRecord> implements EntityMapper<K, E> {
+public class AvroEntityMapper<E extends IndexedRecord> implements EntityMapper<E> {
     private final KeySchema keySchema;
     private final EntitySchema entitySchema;
-    private final KeySerDe<K> keySerDe;
+    private final KeySerDe keySerDe;
     private final EntitySerDe<E> entitySerDe;
 
-    public AvroEntityMapper(KeySchema keySchema, EntitySchema entitySchema,
-                            KeySerDe<K> keySerDe, EntitySerDe<E> entitySerDe) {
+    public AvroEntityMapper(KeySchema keySchema, EntitySchema entitySchema, KeySerDe keySerDe, EntitySerDe<E> entitySerDe) {
         this.keySchema = keySchema;
         this.entitySchema = entitySchema;
         this.keySerDe = keySerDe;
         this.entitySerDe = entitySerDe;
     }
+
+    public static class Builder<X extends IndexedRecord> {
+        private KeySchema keySchema;
+        private EntitySchema entitySchema;
+        private KeySerDe keySerDe;
+        private EntitySerDe<X> entitySerDe;
+
+        public Builder withKeySchema(KeySchema keySchema) {
+            this.keySchema = keySchema;
+            return this;
+        }
+
+        public Builder withEntitySchema(EntitySchema entitySchema) {
+            this.entitySchema = entitySchema;
+            return this;
+        }
+
+        public Builder withKeySerDe(KeySerDe keySerDe) {
+            this.keySerDe = keySerDe;
+            return this;
+        }
+
+        public Builder withEntitySerDe(EntitySerDe<X> entitySerDe) {
+            this.entitySerDe = entitySerDe;
+            return this;
+        }
+
+        public AvroEntityMapper<X> build() {
+            return new AvroEntityMapper<>(keySchema, entitySchema, keySerDe, entitySerDe);
+        }
+    }
+
 
     public AvroEntityComposer<E> getEntityComposer() {
         return entitySerDe.getEntityComposer();
@@ -77,7 +104,7 @@ public class AvroEntityMapper<K extends IndexedRecord, E extends IndexedRecord> 
     }
 
     @Override
-    public Put mapFromEntity(K key, E entity) {
+    public Put mapFromEntity(IndexedRecord key, E entity) {
         byte[] keyBytes = keySerDe.serialize(key); // TODO: rethink this
         Put put = new Put(keyBytes);
         for (FieldMapping fieldMapping : entitySchema.getFieldMappings()) {
@@ -91,27 +118,6 @@ public class AvroEntityMapper<K extends IndexedRecord, E extends IndexedRecord> 
             }
         }
         return put;
-    }
-
-    @Override
-    public Increment mapToIncrement(K key, String fieldName, long amount) {
-        byte[] keyBytes = keySerDe.serialize(key); // TODO: rethink this
-        FieldMapping fieldMapping = entitySchema.getFieldMapping(fieldName);
-
-        checkNotNull(fieldMapping, "Unknown field in the schema: %s", fieldName);
-        checkArgument(fieldMapping.mappingType() != MappingType.COUNTER, "Field is not a counter type: %s", fieldName);
-
-        return new Increment(keyBytes).addColumn(fieldMapping.family(), fieldMapping.qualifier(), amount);
-    }
-
-    @Override
-    public long mapFromIncrementResult(Result result, String fieldName) {
-        FieldMapping fieldMapping = entitySchema.getFieldMapping(fieldName);
-
-        checkNotNull(fieldMapping, "Unknown field in the schema: %s", fieldName);
-        checkArgument(fieldMapping.mappingType() != MappingType.COUNTER, "Field is not a counter type: %s", fieldName);
-
-        return (Long) entitySerDe.deserialize(fieldMapping, result);
     }
 
     @Override
@@ -135,7 +141,7 @@ public class AvroEntityMapper<K extends IndexedRecord, E extends IndexedRecord> 
     }
 
     @Override
-    public KeySerDe<K> getKeySerDe() {
+    public KeySerDe getKeySerDe() {
         return keySerDe;
     }
 
